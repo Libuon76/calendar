@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Chronos Pro - Menu Integrated</title>
+    <title>Chronos Pro - Hybrid Adaptive UI</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Zen Kaku Gothic New', sans-serif; background-color: #f8fafc; color: #1e293b; user-select: none; -webkit-tap-highlight-color: transparent; }
         
+        /* カレンダー基本構造 */
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); grid-auto-rows: 1fr; min-height: calc(100vh - 64px); background: #f1f5f9; gap: 1px; border-bottom: 1px solid #e2e8f0; }
         .day-cell { min-height: 100px; background: white; transition: 0.2s; position: relative; overflow: hidden; padding-bottom: 24px; }
         
@@ -18,40 +19,43 @@
         .holiday-date { color: #e11d48 !important; font-weight: 900 !important; }
 
         /* 予定デザイン */
-        .event-bar { font-size: 0.55rem; padding: 2px 6px; margin-top: 1px; color: white; font-weight: 800; white-space: nowrap; overflow: hidden; height: 18px; display: flex; align-items: center; width: calc(100% + 2px); margin-left: -1px; }
-        .event-dot-row { font-size: 0.55rem; padding: 1px 6px; margin-top: 1px; display: flex; align-items: center; font-weight: 700; color: #334155; border-radius: 3px; margin: 0 1px; }
+        .event-bar { font-size: 0.55rem; padding: 2px 6px; margin-top: 1px; color: white; font-weight: 800; white-space: nowrap; overflow: hidden; height: 18px; display: flex; align-items: center; width: calc(100% + 2px); margin-left: -1px; cursor: pointer; }
+        .event-dot-row { font-size: 0.55rem; padding: 1px 6px; margin-top: 1px; display: flex; align-items: center; font-weight: 700; color: #334155; border-radius: 3px; margin: 0 1px; cursor: pointer; }
         .dot { width: 5px; height: 5px; border-radius: 50%; margin-right: 4px; flex-shrink: 0; }
         .more-badge { position: absolute; bottom: 2px; right: 2px; font-size: 0.55rem; font-weight: 900; color: #64748b; background: #f1f5f9; padding: 0px 4px; border-radius: 3px; z-index: 10; border: 1px solid #e2e8f0; }
 
-        /* サイドメニュー（スライド式） */
-        #sideDrawer { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 1000; }
-        .drawer-overlay { transition: opacity 0.3s; z-index: 999; }
-        
+        /* ナビゲーション */
         .active-nav { background-color: #eff6ff !important; color: #2563eb !important; font-weight: 900; }
-        .hidden { display: none; }
+        
+        /* スマホ用引き出しメニュー */
+        #mobileDrawer { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 1000; }
+        .drawer-overlay { transition: opacity 0.3s; z-index: 999; }
 
-        /* スクロールピッカー */
-        .picker-column::-webkit-scrollbar { width: 0px; }
-        .picker-item { padding: 12px; cursor: pointer; font-weight: 700; border-radius: 12px; text-align: center; }
-        .picker-selected { background: #3b82f6 !important; color: white !important; }
+        /* PCサイドバー固定 */
+        @media (min-width: 768px) { #sideDrawer { transform: translateX(0) !important; position: static !important; } }
 
         /* コンテキストメニュー */
         #contextMenu { position: fixed; z-index: 2000; background: white; border-radius: 16px; border: 1px solid #f1f5f9; padding: 6px; min-width: 160px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
         .menu-item { padding: 10px 14px; font-size: 0.85rem; font-weight: 700; border-radius: 12px; display: flex; align-items: center; gap: 10px; cursor: pointer; color: #475569; }
         
+        /* ピッカー */
+        .picker-column::-webkit-scrollbar { width: 0px; }
+        .picker-item { padding: 12px; cursor: pointer; font-weight: 700; border-radius: 12px; text-align: center; }
+        .picker-selected { background: #3b82f6 !important; color: white !important; }
+
         input, select, textarea { font-size: 16px !important; }
     </style>
 </head>
-<body class="flex h-screen overflow-hidden flex-col" onclick="hideContextMenu(); closeDayDetail();">
+<body class="flex h-screen overflow-hidden flex-col md:flex-row" onclick="hideContextMenu(); closeDayDetail();">
 
-    <!-- オーバーレイ（メニュー背景） -->
-    <div id="drawerOverlay" class="drawer-overlay fixed inset-0 bg-slate-900/40 backdrop-blur-sm opacity-0 pointer-events-none" onclick="toggleMenu(false)"></div>
+    <!-- モバイル用オーバーレイ -->
+    <div id="drawerOverlay" class="drawer-overlay fixed inset-0 bg-slate-900/40 backdrop-blur-sm opacity-0 pointer-events-none md:hidden" onclick="toggleMenu(false)"></div>
 
-    <!-- スライド式サイドメニュー（ハンバーガーメニューの中身） -->
-    <aside id="sideDrawer" class="fixed top-0 left-0 bottom-0 w-72 bg-white shadow-2xl transform -translate-x-full flex flex-col">
-        <div class="p-6 border-b flex justify-between items-center">
+    <!-- サイドメニュー (PCは固定、スマホは引き出し) -->
+    <aside id="sideDrawer" class="fixed md:static top-0 left-0 bottom-0 w-72 bg-white border-r border-slate-200 flex flex-col z-[1000] transform -translate-x-full md:translate-x-0 transition-transform">
+        <div class="p-6 border-b flex justify-between items-center md:border-none">
             <h1 class="text-2xl font-black text-blue-600 tracking-tighter"><i class="fas fa-calendar-check mr-2"></i>Chronos</h1>
-            <button onclick="toggleMenu(false)" class="text-slate-400 p-2 hover:bg-slate-50 rounded-full"><i class="fas fa-times"></i></button>
+            <button onclick="toggleMenu(false)" class="md:hidden text-slate-400 p-2"><i class="fas fa-times"></i></button>
         </div>
         
         <div class="p-6">
@@ -60,72 +64,68 @@
             </button>
             
             <nav class="space-y-2">
-                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-3 mb-2">表示切替</p>
                 <button onclick="switchView('calendar'); toggleMenu(false);" class="nav-btn-calendar w-full text-left px-4 py-3 rounded-xl active-nav font-bold text-slate-600 flex items-center gap-3">
                     <i class="fas fa-calendar-alt w-5"></i>カレンダー
                 </button>
-                <button onclick="switchView('dashboard'); toggleMenu(false);" class="nav-btn-dashboard w-full text-left px-4 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-50 flex items-center gap-3">
+                <button onclick="switchView('dashboard'); toggleMenu(false);" class="nav-btn-dashboard w-full text-left px-4 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-50 flex items-center gap-3 transition-colors">
                     <i class="fas fa-th-large w-5"></i>ダッシュボード
                 </button>
             </nav>
 
-            <nav class="mt-10 space-y-2">
-                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-3 mb-2">データ管理</p>
-                <button onclick="exportData()" class="w-full text-left px-4 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-50 flex items-center gap-3">
-                    <i class="fas fa-file-export w-5 text-slate-400"></i>データを書き出し
+            <div class="mt-10 pt-6 border-t border-slate-50 space-y-4">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-3">データ管理</p>
+                <button onclick="exportData()" class="w-full text-left px-4 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-50 flex items-center gap-3 transition-colors">
+                    <i class="fas fa-file-export w-5 text-slate-400"></i>書出し (JSON)
                 </button>
-                <button onclick="document.getElementById('importFile').click(); toggleMenu(false);" class="w-full text-left px-4 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-50 flex items-center gap-3">
-                    <i class="fas fa-file-import w-5 text-slate-400"></i>データを読み込み
+                <button onclick="document.getElementById('importFile').click(); toggleMenu(false);" class="w-full text-left px-4 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-50 flex items-center gap-3 transition-colors">
+                    <i class="fas fa-file-import w-5 text-slate-400"></i>取込み (JSON)
                 </button>
-            </nav>
-        </div>
-        
-        <div class="mt-auto p-6 border-t text-center">
-            <span class="text-[10px] font-black text-slate-300 tracking-widest uppercase">Local Edition v2.0</span>
+            </div>
         </div>
     </aside>
 
-    <!-- ヘッダー -->
-    <header class="h-16 border-b bg-white flex items-center justify-between px-4 md:px-8 shrink-0 z-50">
-        <div class="flex items-center gap-2 md:gap-4">
-            <!-- ハンバーガーボタン -->
-            <button onclick="toggleMenu(true)" class="p-3 -ml-2 text-slate-500 hover:bg-slate-50 rounded-xl transition">
-                <i class="fas fa-bars text-xl"></i>
-            </button>
-
-            <!-- 年月選択 -->
-            <button onclick="toggleDatePicker(); event.stopPropagation();" class="flex items-center gap-2 py-2 px-2 hover:bg-slate-50 rounded-xl transition">
-                <h2 id="currentMonthDisplay" class="text-base md:text-xl font-black text-slate-800">2024年 10月</h2>
-                <i class="fas fa-chevron-down text-slate-300 text-xs" id="pickerArrow"></i>
-            </button>
-        </div>
-
-        <!-- ナビゲーション -->
-        <div class="flex bg-slate-100 rounded-xl p-1 scale-90 md:scale-100">
-            <button onclick="prevMonth()" class="p-2 hover:bg-white rounded-lg transition"><i class="fas fa-chevron-left text-xs"></i></button>
-            <button onclick="goToday()" class="px-3 md:px-4 text-xs font-black">今日</button>
-            <button onclick="nextMonth()" class="p-2 hover:bg-white rounded-lg transition"><i class="fas fa-chevron-right text-xs"></i></button>
-        </div>
-    </header>
-
     <!-- メイン -->
-    <main class="flex-1 relative overflow-hidden h-full" id="mainContainer">
-        <!-- アクションガイド（コピー/移動中） -->
+    <main class="flex-1 flex flex-col relative h-full overflow-hidden" id="mainContainer">
+        <!-- ヘッダー -->
+        <header class="h-16 border-b bg-white flex items-center justify-between px-4 md:px-8 shrink-0 z-50">
+            <div class="flex items-center gap-2">
+                <!-- ハンバーガーボタン (スマホのみ表示) -->
+                <button onclick="toggleMenu(true)" class="md:hidden p-3 -ml-2 text-slate-500 hover:bg-slate-50 rounded-xl transition">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+
+                <!-- 年月選択 -->
+                <button onclick="toggleDatePicker(); event.stopPropagation();" class="flex items-center gap-2 py-2 px-2 hover:bg-slate-50 rounded-xl transition">
+                    <h2 id="currentMonthDisplay" class="text-base md:text-xl font-black text-slate-800">2024年 10月</h2>
+                    <i class="fas fa-chevron-down text-slate-300 text-xs" id="pickerArrow"></i>
+                </button>
+            </div>
+
+            <!-- カレンダー操作 -->
+            <div class="flex bg-slate-100 rounded-xl p-1 scale-90 md:scale-100">
+                <button onclick="prevMonth()" class="p-2 hover:bg-white rounded-lg transition"><i class="fas fa-chevron-left text-xs"></i></button>
+                <button onclick="goToday()" class="px-3 md:px-4 text-xs font-black">今日</button>
+                <button onclick="nextMonth()" class="p-2 hover:bg-white rounded-lg transition"><i class="fas fa-chevron-right text-xs"></i></button>
+            </div>
+        </header>
+
+        <!-- アクションガイド -->
         <div id="actionGuide" class="hidden absolute top-0 left-0 right-0 bg-blue-600 text-white py-3 px-8 flex justify-between items-center z-[200] shadow-lg animate-in slide-in-from-top">
-            <span id="actionText" class="font-bold text-xs md:text-sm truncate">日付を選んでください</span>
-            <button onclick="cancelAction()" class="bg-white/20 px-3 py-1 rounded-lg text-[10px] font-black">止める</button>
+            <span id="actionText" class="font-bold text-xs">移動先を選んでください</span>
+            <button onclick="cancelAction()" class="bg-white/20 px-3 py-1 rounded-lg text-[10px] font-black">停止</button>
         </div>
 
+        <!-- コンテンツエリア -->
         <div id="view-calendar" class="calendar-grid overflow-y-auto"></div>
-        <div id="view-dashboard" class="hidden p-6 md:p-10 overflow-y-auto bg-slate-50 h-full"><div id="dashboard-list" class="space-y-3 max-w-4xl mx-auto"></div></div>
+        <div id="view-dashboard" class="hidden p-6 md:p-10 overflow-y-auto bg-slate-50 h-full pb-32 md:pb-10"><div id="dashboard-list" class="space-y-3 max-w-4xl mx-auto"></div></div>
 
-        <!-- 年月ピッカー（ドロップダウン） -->
-        <div id="datePickerDropdown" class="hidden absolute top-2 left-4 md:left-24 bg-white shadow-2xl rounded-[2rem] border border-slate-100 p-6 z-[100] w-[calc(100%-32px)] md:w-[320px]">
+        <!-- 年月ピッカー -->
+        <div id="datePickerDropdown" class="hidden absolute top-2 left-4 md:left-8 bg-white shadow-2xl rounded-[2rem] border p-6 z-[100] w-[calc(100%-32px)] md:w-[320px]">
             <div class="flex gap-4 h-60 md:h-64">
                 <div id="yearPickerColumn" class="flex-1 overflow-y-auto pr-1 picker-column"></div>
                 <div id="monthPickerColumn" class="w-20 md:w-24 overflow-y-auto pr-1 picker-column"></div>
             </div>
-            <button onclick="toggleDatePicker()" class="mt-4 w-full py-3 bg-blue-600 text-white rounded-2xl font-black text-sm shadow-lg">決定</button>
+            <button onclick="toggleDatePicker()" class="mt-4 w-full py-3 bg-blue-600 text-white rounded-2xl font-black text-sm">決定</button>
         </div>
 
         <!-- デイリー詳細ポップアップ -->
@@ -135,86 +135,69 @@
         </div>
     </main>
 
+    <!-- スマホ用フローティングボタン -->
+    <button onclick="openModal()" class="md:hidden fixed bottom-6 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center z-50 active:scale-90 transition-transform text-xl"><i class="fas fa-plus"></i></button>
+
     <!-- 予定登録モーダル -->
-    <div id="eventModal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-end md:items-center justify-center z-[600]">
-        <div class="bg-white rounded-t-[2.5rem] md:rounded-[2.5rem] shadow-2xl w-full md:w-[540px] h-[90vh] md:max-h-[94vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300">
-            <div class="p-6 md:p-8 overflow-y-auto flex-1">
+    <div id="eventModal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-end md:items-center justify-center z-[2000]">
+        <div class="bg-white rounded-t-[2.5rem] md:rounded-[2.5rem] shadow-2xl w-full md:w-[540px] h-[90vh] md:max-h-[94vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom md:zoom-in-95 duration-300">
+            <div class="p-6 md:p-8 overflow-y-auto flex-1 text-left">
                 <div class="flex justify-between items-center mb-6">
                     <input id="eventTitle" type="text" placeholder="予定のタイトル" class="text-xl md:text-2xl font-black outline-none w-full border-b-2 border-transparent focus:border-blue-400 pb-1">
                     <button onclick="closeModal()" class="md:hidden text-slate-400 p-2"><i class="fas fa-times"></i></button>
                 </div>
                 <div class="space-y-4">
                     <div class="bg-slate-50 p-4 md:p-5 rounded-2xl border">
-                        <div class="flex items-center justify-between mb-4"><span class="text-xs font-black text-slate-400 uppercase tracking-widest">期間・時間</span><label class="flex items-center gap-2 cursor-pointer bg-white px-3 py-1 rounded-full shadow-sm"><input type="checkbox" id="isAllDay" onchange="toggleTimeInputs()" checked class="rounded text-blue-500"><span class="text-[10px] font-black">終日</span></label></div>
-                        <div class="flex flex-col md:flex-row gap-2 mb-3"><input id="startDate" type="date" class="w-full p-3 border rounded-xl font-bold"><input id="endDate" type="date" class="w-full p-3 border rounded-xl font-bold"></div>
-                        <div id="timeInputs" class="hidden flex gap-2"><input id="startTime" type="time" class="w-full p-3 border rounded-xl font-bold"><span class="text-slate-300 self-center">~</span><input id="endTime" type="time" class="w-full p-3 border rounded-xl font-bold"></div>
+                        <div class="flex items-center justify-between mb-4"><span class="text-xs font-black text-slate-400 uppercase">期間・時間</span><label class="flex items-center gap-2 cursor-pointer bg-white px-3 py-1 rounded-full shadow-sm"><input type="checkbox" id="isAllDay" onchange="toggleTimeInputs()" checked class="rounded text-blue-500"><span class="text-[10px] font-black text-slate-600">終日</span></label></div>
+                        <div class="flex flex-col md:flex-row gap-2 mb-3"><input id="startDate" type="date" class="w-full p-3 md:p-2 border rounded-xl font-bold"><input id="endDate" type="date" class="w-full p-3 md:p-2 border rounded-xl font-bold"></div>
+                        <div id="timeInputs" class="hidden flex gap-2"><input id="startTime" type="time" class="w-full p-3 md:p-2 border rounded-xl font-bold"><span class="text-slate-300 self-center">~</span><input id="endTime" type="time" class="w-full p-3 md:p-2 border rounded-xl font-bold"></div>
                     </div>
-                    <select id="eventRepeat" class="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none border border-transparent focus:border-blue-400"><option value="none">繰り返さない</option><option value="daily">毎日</option><option value="weekly">毎週</option><option value="monthly">毎月</option></select>
-                    <select id="eventColor" class="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none border border-transparent focus:border-blue-400">
-                        <option value="#3b82f6">ブルー</option><option value="#ef4444">レッド</option><option value="#10b981">エメラルド</option><option value="#f59e0b">アンバー</option><option value="#8b5cf6">パープル</option><option value="#ec4899">ピンク</option>
-                    </select>
-                    <textarea id="eventNote" placeholder="メモ・詳細ノート..." class="w-full bg-slate-50 p-4 rounded-2xl min-h-[120px] font-bold outline-none resize-none focus:border-blue-400 border border-transparent"></textarea>
+                    <div class="flex flex-col gap-1"><span class="text-[10px] font-black text-slate-400 ml-3">繰り返し設定</span><select id="eventRepeat" class="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none"><option value="none">繰り返さない</option><option value="daily">毎日</option><option value="weekly">毎週</option><option value="monthly">毎月</option></select></div>
+                    <div class="flex flex-col gap-1"><span class="text-[10px] font-black text-slate-400 ml-3">カラーラベル</span><select id="eventColor" class="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none">
+                        <option value="#3b82f6">仕事（ブルー）</option><option value="#ef4444">部活（レッド）</option><option value="#10b981">健康（エメラルド）</option><option value="#f59e0b">注意（アンバー）</option><option value="#8b5cf6">私用（パープル）</option><option value="#ec4899">娯楽（ピンク）</option>
+                    </select></div>
+                    <textarea id="eventNote" placeholder="メモ・詳細ノート..." class="w-full bg-slate-50 p-4 rounded-2xl min-h-[120px] font-bold outline-none resize-none"></textarea>
                 </div>
             </div>
-            <div class="p-6 md:p-8 bg-slate-50/50 flex justify-end gap-3 shrink-0">
-                <button onclick="closeModal()" class="hidden md:block font-bold text-slate-400 px-4 hover:text-slate-600 transition">戻る</button>
-                <button onclick="saveEvent()" class="w-full md:w-auto px-10 py-4 md:py-3 bg-blue-600 text-white rounded-2xl font-black shadow-lg transform active:scale-95 transition">保存する</button>
-            </div>
+            <div class="p-6 md:p-8 bg-slate-50/50 flex justify-end gap-3 shrink-0"><button onclick="closeModal()" class="hidden md:block font-bold text-slate-400 px-4">戻る</button><button onclick="saveEvent()" class="w-full md:w-auto px-10 py-4 md:py-3 bg-blue-600 text-white rounded-2xl font-black shadow-lg transform active:scale-95 transition">保存する</button></div>
             <input type="hidden" id="editingId">
         </div>
     </div>
 
-    <!-- コンテキストメニュー（長押し） -->
+    <!-- コンテキストメニュー -->
     <div id="contextMenu" class="hidden">
-        <div class="menu-item" onclick="initAction('copy')"><i class="fas fa-copy w-5 text-blue-500"></i> コピー</div>
-        <div class="menu-item" onclick="initAction('move')"><i class="fas fa-arrows-alt w-5 text-blue-500"></i> 移動</div>
-        <div class="menu-item text-red-500 border-t mt-1 pt-1" onclick="deleteEventFromMenu()"><i class="fas fa-trash-alt w-5"></i> 削除</div>
+        <div class="menu-item" onclick="initAction('copy')"><i class="fas fa-copy text-blue-500"></i> コピー</div>
+        <div class="menu-item" onclick="initAction('move')"><i class="fas fa-arrows-alt text-blue-500"></i> 移動</div>
+        <div class="menu-item text-red-500 border-t mt-1 pt-1" onclick="deleteEventFromMenu()"><i class="fas fa-trash-alt"></i> 削除</div>
     </div>
 
+    <!-- インポート用隠しボタン -->
     <input type="file" id="importFile" class="hidden" accept=".json" onchange="handleFileSelect(event)">
 
     <script>
-        /* --- 1. 初期設定とデータ移行 --- */
         let currentMonth = new Date();
         const STORAGE_KEY = 'chronos_master_v1';
         let eventsList = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
         let holidays = {};
         let longPressTimer, isLongPressActive = false, selectedEventId = null, activeAction = null, actionSourceEvent = null, tempImportData = null;
 
+        // データ復元 (過去バージョンからの引継ぎ)
         function migrateLegacyData() {
-            const legacyKeys = ['chronos_events', 'chronos_v16_ultimate', 'chronos_ultimate_final_sync', 'chronos_v15_final', 'chronos_sync_v2_final'];
+            const legacyKeys = ['chronos_ultimate_final_sync', 'chronos_v16_ultimate', 'chronos_v15_final', 'chronos_sync_v2_final'];
             let combined = [...eventsList]; const ids = new Set(combined.map(e => e.id));
-            legacyKeys.forEach(k => { const d = localStorage.getItem(k); if(!d) return; try { const p = JSON.parse(d); (Array.isArray(p)?p:[]).forEach(e => { if(!ids.has(e.id)){ combined.push(e); ids.add(e.id); } }); } catch(e){} });
+            legacyKeys.forEach(k => { const d = localStorage.getItem(k); if(!d) return; try { JSON.parse(d).forEach(e => { if(!ids.has(e.id)){ combined.push(e); ids.add(e.id); } }); } catch(e){} });
             eventsList = combined; localStorage.setItem(STORAGE_KEY, JSON.stringify(eventsList));
         }
 
-        /* --- 2. メニュー & ナビゲーション制御 --- */
         function toggleMenu(show) {
-            const drawer = document.getElementById('sideDrawer');
-            const overlay = document.getElementById('drawerOverlay');
-            if (show) {
-                drawer.style.transform = "translateX(0)";
-                overlay.style.opacity = "1";
-                overlay.style.pointerEvents = "auto";
-            } else {
-                drawer.style.transform = "translateX(-100%)";
-                overlay.style.opacity = "0";
-                overlay.style.pointerEvents = "none";
-            }
+            const drawer = document.getElementById('sideDrawer'); const overlay = document.getElementById('drawerOverlay');
+            if (show) { drawer.style.transform = "translateX(0)"; overlay.style.opacity = "1"; overlay.style.pointerEvents = "auto"; } 
+            else { drawer.style.transform = "translateX(-100%)"; overlay.style.opacity = "0"; overlay.style.pointerEvents = "none"; }
         }
 
-        function switchView(v) {
-            document.querySelectorAll('.nav-btn-calendar, .nav-btn-dashboard').forEach(el => el.classList.remove('active-nav'));
-            document.querySelectorAll('.nav-btn-' + v).forEach(el => el.classList.add('active-nav'));
-            document.getElementById('view-calendar').classList.toggle('hidden', v==='dashboard');
-            document.getElementById('view-dashboard').classList.toggle('hidden', v==='calendar');
-            if(v==='dashboard') renderDashboard();
-        }
-
-        /* --- 3. カレンダー描画 --- */
         async function fetchHolidays() {
             try { const res = await fetch('https://holidays-jp.github.io/api/v1/date.json'); const all = await res.json();
-                holidays = {}; const cur = new Date().getFullYear(); for(let d in all) if(parseInt(d.split('-')[0]) <= cur + 5) holidays[d] = all[d];
+                holidays = {}; const cy = new Date().getFullYear(); for(let d in all) if(parseInt(d.split('-')[0]) <= cy + 5) holidays[d] = all[d];
             } catch(e){}
             renderCalendar();
         }
@@ -234,30 +217,27 @@
 
             for(let d=1; d<=last; d++) {
                 const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-                const checkDate = new Date(dateStr); const holiday = holidays[dateStr];
+                const check = new Date(dateStr); const holiday = holidays[dateStr];
                 
                 const dayEvs = eventsList.filter(ev => {
                     const s = new Date(ev.startDate); const e = new Date(ev.endDate);
-                    if(checkDate >= s && checkDate <= e) return true;
-                    if(ev.repeat === 'daily' && checkDate >= s) return true;
-                    if(ev.repeat === 'weekly' && checkDate >= s && checkDate.getDay() === s.getDay()) return true;
-                    if(ev.repeat === 'monthly' && checkDate >= s && checkDate.getDate() === s.getDate()) return true;
+                    if(check >= s && check <= e) return true;
+                    if(ev.repeat === 'daily' && check >= s) return true;
+                    if(ev.repeat === 'weekly' && check >= s && check.getDay() === s.getDay()) return true;
+                    if(ev.repeat === 'monthly' && check >= s && check.getDate() === s.getDate()) return true;
                     return false;
                 }).sort((a,b) => (a.isAllDay ? -1 : 1) || (a.startTime > b.startTime ? 1 : -1));
 
                 const MAX = 4; const visible = dayEvs.slice(0, MAX); const more = dayEvs.length - MAX;
-
-                let html = `
-                    <div class="flex items-center justify-between mb-1 px-1">
-                        <div onclick="event.stopPropagation(); openDayDetail(event, '${dateStr}')" class="text-[11px] px-2 py-1 cursor-pointer hover:bg-slate-100 rounded-lg ${new Date().toDateString()===checkDate.toDateString()?'bg-blue-600 text-white font-black':(holiday?'text-red-500 font-black':'text-slate-400 font-bold')}">${d}</div>
-                        ${holiday ? `<span class="text-[7px] text-red-300 font-black truncate max-w-[40px] hidden md:inline">${holiday}</span>` : ''}
-                    </div>`;
+                let html = `<div class="flex items-center justify-between mb-1 px-1">
+                        <div onclick="event.stopPropagation(); openDayDetail(event, '${dateStr}')" class="text-[11px] px-2 py-1 cursor-pointer hover:bg-slate-100 rounded-lg ${new Date().toDateString()===check.toDateString()?'bg-blue-600 text-white font-black':(holiday?'text-red-500 font-black':'text-slate-400 font-bold')}">${d}</div>
+                        ${holiday ? `<span class="text-[7px] text-red-300 font-black truncate max-w-[40px] hidden md:inline">${holiday}</span>` : ''}</div>`;
 
                 visible.forEach(ev => {
                     if(ev.startDate !== ev.endDate || ev.isAllDay) {
-                        html += `<div class="event-bar ${dateStr === ev.startDate ? 'rounded-l-md' : ''} ${dateStr === ev.endDate ? 'rounded-r-md' : ''}" style="background:${ev.color}" onmousedown="onEventTouchStart(event, '${ev.id}')" onclick="onEventClick(event, '${ev.id}', '${dateStr}')"><span class="truncate ml-1">${dateStr === ev.startDate || ev.repeat !== 'none' ? ev.title : '&nbsp;'}</span></div>`;
+                        html += `<div class="event-bar ${dateStr === ev.startDate ? 'rounded-l-md' : ''} ${dateStr === ev.endDate ? 'rounded-r-md' : ''}" style="background:${ev.color}" onmousedown="onEventTouchStart(event, '${ev.id}')" ontouchstart="onEventTouchStart(event, '${ev.id}')" onclick="onEventClick(event, '${ev.id}', '${dateStr}')"><span class="truncate ml-1">${dateStr === ev.startDate || ev.repeat !== 'none' ? ev.title : '&nbsp;'}</span></div>`;
                     } else {
-                        html += `<div class="event-dot-row" onmousedown="onEventTouchStart(event, '${ev.id}')" onclick="onEventClick(event, '${ev.id}', '${dateStr}')"><span class="dot" style="background:${ev.color}"></span><span class="truncate">${ev.title}</span></div>`;
+                        html += `<div class="event-dot-row" onmousedown="onEventTouchStart(event, '${ev.id}')" ontouchstart="onEventTouchStart(event, '${ev.id}')" onclick="onEventClick(event, '${ev.id}', '${dateStr}')"><span class="dot" style="background:${ev.color}"></span><span class="truncate">${ev.title}</span></div>`;
                     }
                 });
                 if(more > 0) html += `<div class="more-badge" onclick="event.stopPropagation(); openDayDetail(event, '${dateStr}')">+${more}</div>`;
@@ -266,7 +246,7 @@
             }
         }
 
-        /* --- 4. アクション & 補助機能 (統合版) --- */
+        /* アクション制御 */
         function onEventTouchStart(e, id) { isLongPressActive = false; selectedEventId = id; const x = e.clientX || (e.touches && e.touches[0].clientX); const y = e.clientY || (e.touches && e.touches[0].clientY); longPressTimer = setTimeout(() => { isLongPressActive = true; showContextMenu(x, y); }, 600); }
         function onEventClick(e, id, dateStr) { e.stopPropagation(); clearTimeout(longPressTimer); if (isLongPressActive) { isLongPressActive = false; return; } openModal('', id); }
         function showContextMenu(x, y) { const m = document.getElementById('contextMenu'); m.style.left = `${Math.min(x, window.innerWidth - 180)}px`; m.style.top = `${Math.min(y, window.innerHeight - 150)}px`; m.classList.remove('hidden'); }
@@ -326,7 +306,23 @@
             m.classList.remove('hidden'); e.stopPropagation();
         }
 
-        /* --- その他パーツ --- */
+        function initAction(t) { activeAction = t; actionSourceEvent = eventsList.find(ev => ev.id == selectedEventId); document.getElementById('actionGuide').classList.remove('hidden'); hideContextMenu(); }
+        function cancelAction() { activeAction = null; document.getElementById('actionGuide').classList.add('hidden'); }
+        function deleteEventFromMenu() { if(confirm('削除しますか？')) { eventsList = eventsList.filter(ev => ev.id !== selectedEventId); localStorage.setItem(STORAGE_KEY, JSON.stringify(eventsList)); renderCalendar(); hideContextMenu(); } }
+        function switchView(v) { 
+            document.querySelectorAll('.nav-btn-calendar, .nav-btn-dashboard').forEach(el => el.classList.remove('active-nav'));
+            document.querySelectorAll('.nav-btn-' + v).forEach(el => el.classList.add('active-nav'));
+            document.getElementById('view-calendar').classList.toggle('hidden', v==='dashboard');
+            document.getElementById('view-dashboard').classList.toggle('hidden', v==='calendar');
+            if(v==='dashboard') renderDashboard();
+        }
+        function renderDashboard() {
+            const l = document.getElementById('dashboard-list'); l.innerHTML = '';
+            const sorted = [...eventsList].sort((a,b) => new Date(a.startDate) - new Date(b.startDate));
+            sorted.forEach(ev => { const s = new Date(ev.startDate); l.innerHTML += `<div class="bg-white p-5 rounded-3xl shadow-sm border flex justify-between items-center active:bg-blue-50 transition" onclick="openModal('', '${ev.id}')"><div class="flex items-center gap-5"><div class="w-12 h-12 rounded-2xl flex flex-col items-center justify-center font-black" style="background:${ev.color}15; color:${ev.color}"><span class="text-[9px] opacity-60">${s.getMonth()+1}月</span><span class="text-xl leading-none">${s.getDate()}</span></div><div><h4 class="font-black text-slate-800">${ev.title || '無題'}</h4><p class="text-[10px] text-slate-400 font-bold">${ev.startDate} ${ev.isAllDay ? '終日' : ev.startTime}</p></div></div><i class="fas fa-chevron-right text-slate-200"></i></div>`; });
+        }
+        
+        /* 共通補助パーツ */
         function toggleDatePicker() { document.getElementById('datePickerDropdown').classList.toggle('hidden'); if(!document.getElementById('datePickerDropdown').classList.contains('hidden')) initPickerLists(); }
         function initPickerLists() {
             const yc = document.getElementById('yearPickerColumn'); const mc = document.getElementById('monthPickerColumn');
@@ -342,24 +338,14 @@
                 if(m === currentMonth.getMonth()) setTimeout(() => i.scrollIntoView({ block: 'center' }), 0);
             }
         }
+        function exportData() { const b = new Blob([JSON.stringify(eventsList, null, 2)], { type: "application/json" }); const l = document.createElement("a"); l.href = URL.createObjectURL(b); l.download = `chronos_backup.json`; l.click(); }
+        function handleFileSelect(e) { const f = e.target.files[0]; if(!f) return; const r = new FileReader(); r.onload = (e) => { eventsList = JSON.parse(e.target.result); localStorage.setItem(STORAGE_KEY, JSON.stringify(eventsList)); renderCalendar(); alert("完了"); }; r.readAsText(f); }
         function toggleTimeInputs() { document.getElementById('timeInputs').classList.toggle('hidden', document.getElementById('isAllDay').checked); }
         function closeModal() { document.getElementById('eventModal').classList.add('hidden'); }
         function closeDayDetail() { document.getElementById('dayDetailModal').classList.add('hidden'); }
-        function closeImportModal() { document.getElementById('importModal').classList.add('hidden'); }
         function goToday() { currentMonth = new Date(); renderCalendar(); }
         function prevMonth() { currentMonth.setMonth(currentMonth.getMonth()-1); renderCalendar(); }
         function nextMonth() { currentMonth.setMonth(currentMonth.getMonth()+1); renderCalendar(); }
-        function exportData() { const b = new Blob([JSON.stringify(eventsList, null, 2)], { type: "application/json" }); const l = document.createElement("a"); l.href = URL.createObjectURL(b); l.download = `chronos_backup.json`; l.click(); }
-        function handleFileSelect(e) { const f = e.target.files[0]; if(!f) return; const r = new FileReader(); r.onload = (e) => { tempImportData = JSON.parse(e.target.result); document.getElementById('importModal').classList.remove('hidden'); e.target.value = ''; }; r.readAsText(f); }
-        function confirmImport(m) { if(m==='overwrite') eventsList = tempImportData; else { const ids = new Set(eventsList.map(e=>e.id)); tempImportData.forEach(n=>{ if(!ids.has(n.id)) eventsList.push(n); }); } localStorage.setItem(STORAGE_KEY, JSON.stringify(eventsList)); closeImportModal(); renderCalendar(); }
-        function initAction(t) { activeAction = t; actionSourceEvent = eventsList.find(ev => ev.id == selectedEventId); document.getElementById('actionGuide').classList.remove('hidden'); hideContextMenu(); }
-        function cancelAction() { activeAction = null; document.getElementById('actionGuide').classList.add('hidden'); }
-        function deleteEventFromMenu() { if(confirm('削除しますか？')) { eventsList = eventsList.filter(ev => ev.id !== selectedEventId); localStorage.setItem(STORAGE_KEY, JSON.stringify(eventsList)); renderCalendar(); hideContextMenu(); } }
-        function renderDashboard() {
-            const l = document.getElementById('dashboard-list'); l.innerHTML = '';
-            const sorted = [...eventsList].sort((a,b) => new Date(a.startDate) - new Date(b.startDate));
-            sorted.forEach(ev => { const s = new Date(ev.startDate); l.innerHTML += `<div class="bg-white p-5 rounded-3xl shadow-sm border flex justify-between items-center active:bg-blue-50 transition" onclick="openModal('', '${ev.id}')"><div class="flex items-center gap-5"><div class="w-12 h-12 rounded-2xl flex flex-col items-center justify-center font-black" style="background:${ev.color}15; color:${ev.color}"><span class="text-[9px] opacity-60">${s.getMonth()+1}月</span><span class="text-xl leading-none">${s.getDate()}</span></div><div><h4 class="font-black text-slate-800">${ev.title || '無題'}</h4><p class="text-[10px] text-slate-400 font-bold">${ev.startDate} ${ev.isAllDay ? '終日' : ev.startTime}</p></div></div><i class="fas fa-chevron-right text-slate-200"></i></div>`; });
-        }
 
         migrateLegacyData();
         fetchHolidays();
